@@ -5,9 +5,8 @@
  * 2. create a server and a client [COMPLETE]
  * 	* these should be separate modes that the user can choose
  	* should use TCP to ensure all of the file gets sent and connection loss doesnt fuck shit up
- * 3. create a header that has the file size and name
- * 4. figure out serilization so it is more compatible
- * 5. compression and encryption?
+ * 3. figure out serilization so it is more compatible
+ * 4. compression and encryption?
  ******************************4/7 57% COMPLETE******************************
  */ 
 #include <stdio.h>
