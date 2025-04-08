@@ -1,6 +1,7 @@
 # General
 This is a catch-all repo for my projects. If any are particularly popular or I find them super cool, then I may move them to their own repo upon completion. All projects are licensed with the "Unlicense license" so feel free to modify/fork/whatever any of the projects to suit your needs :)
 
+All projects will include the source code as well as a pre-compiled binary version that can be ran
 # Projects
 ## File share program
 **Status**: incomplete
