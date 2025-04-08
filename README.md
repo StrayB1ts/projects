@@ -10,6 +10,12 @@ All projects will include the source code as well as a pre-compiled binary versi
 
 **Description**: This is a simple program meant mainly to help me learn some network programming. It will be entirely self contained with all dependecies that should be available on most *NIX machines (stdio,arpa/inet,etc...), and will provide a simple cli based way to share files on a local network.
 
-**Features**: Server and client mode (COMPLETE), TCP connection to ensure most reliable data transfer (COMPLETE), serialization so that any type of file can be transferred, encryption/decryption when sending
+**Features**: 
+- Server and client mode (COMPLETE)
+- TCP connection to ensure most reliable data transfer (COMPLETE)
+- serialization so that any type of file can be transferred
+- encryption/decryption when sending
 
-**Limitations/Quirks**: Must be used on a *NIX machine (feel free to fork and make it work on Windows/Mac though!), No directory traversal so the server must be ran from the folder that has the file you want
+**Limitations/Quirks**: 
+- Must be used on a *NIX machine (feel free to fork and make it work on Windows/Mac though!)
+- No directory traversal so the server must be ran from the folder that has the file you want
