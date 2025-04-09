@@ -1,4 +1,4 @@
-fileshare/tags
-fileshare/compile_flags.txt
-fileshare/makefile
 tags
+*/tags
+*/makefile
+*/compile_flags.txt

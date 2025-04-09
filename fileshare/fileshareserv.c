@@ -199,7 +199,7 @@ void initialize_client(char filename[]){
 	char buf[MAXDATASIZE];
 	char s[INET6_ADDRSTRLEN];
 	int size = 0;
-	char ip[12];
+	char ip[15];
 	for(short i = 0; i < MAXFNLEN;i++){
 		size++;
 		if(filename[i] == '\0'){
