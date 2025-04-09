@@ -199,6 +199,7 @@ void initialize_client(char filename[]){
 	char buf[MAXDATASIZE];
 	char s[INET6_ADDRSTRLEN];
 	int size = 0;
+	char ip[12];
 	for(short i = 0; i < MAXFNLEN;i++){
 		size++;
 		if(filename[i] == '\0'){
@@ -208,7 +209,21 @@ void initialize_client(char filename[]){
 	memset(&hints,0,sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	if((rv = getaddrinfo("127.0.0.1",PORT,&hints,&servinfo)) != 0){
+	printf("Enter the IP address of the machine you would like to connect to: ");
+	if(!fgets(ip,sizeof(ip),stdin)){
+		fprintf(stderr,"error reading IP address\n");
+		perror("Read IP");
+		exit(1);
+	}
+	for(unsigned short i = 0; i != sizeof(ip); i++){
+		if(ip[i] == '\n'){
+			ip[i] = '\0';
+		}
+	}
+	if(strcmp(ip,"localhost") == 0){
+		strncpy(ip,"127.0.0.1",12);
+	}
+	if((rv = getaddrinfo(ip,PORT,&hints,&servinfo)) != 0){
 		fprintf(stderr,"getaddrinfo: %s\n",gai_strerror(rv));
 		exit(1);
 	}
