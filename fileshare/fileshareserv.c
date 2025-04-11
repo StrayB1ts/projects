@@ -168,7 +168,10 @@ void initialize_server(void){
 		if(!fork()){
 			close(sockfd); // child doesn't need the listener
 			char buf[MAXDATASIZE];
+			char filesizestr[MAXDATASIZE];
+			char confirmationofsize;
 			FILE *pfile = NULL;
+			int filesize = 0;
 			if((numbytes = recv(new_fd,buf,MAXDATASIZE - 1,0)) == -1){
 				perror("recv");
 				exit(1);
@@ -182,8 +185,32 @@ void initialize_server(void){
 				break;
 			}
 			else{
-				if(send(new_fd,buf,sizeof(buf),0) == -1){
+				if((fseek(pfile,0,SEEK_END) != 0)){
+					perror("file size");
+					break;
+				}
+				filesize = ftell(pfile);
+				snprintf(filesizestr,MAXDATASIZE,"%d",filesize);
+				if(send(new_fd,filesizestr,sizeof(filesizestr),0) == -1){
 					perror("send");
+					break;
+				}
+				if((numbytes = recv(new_fd,&confirmationofsize,1,0)) == -1){
+					perror("recv");
+					exit(1);
+				}
+				if(confirmationofsize == 'n'){
+					fclose(pfile);
+					close(new_fd);
+					printf("server: Transfer cancelled connection closed\n");
+					printf("server: waiting for connections...\n");
+					exit(0);
+				}
+				else{
+					//				if(send(new_fd,buf,sizeof(buf),0) == -1){
+					//					perror("send");
+					//				}
+					printf("placeholder\n");
 				}
 				fclose(pfile);
 				close(new_fd);
@@ -200,6 +227,7 @@ void initialize_client(char filename[]){
 	char s[INET6_ADDRSTRLEN];
 	int size = 0;
 	char ip[15];
+	char confirm;
 	for(short i = 0; i < MAXFNLEN;i++){
 		size++;
 		if(filename[i] == '\0'){
@@ -254,7 +282,15 @@ void initialize_client(char filename[]){
 		exit(1);
 	}
 	buf[numbytes] = '\0';
-	printf("client: recieved '%s'\n",buf);
+	printf("client: recieved file size of %s bytes, is this correct(y/n)? ",buf);
+	if(!scanf(" %c",&confirm)){
+		perror("size confirm");
+		exit(1);
+	}
+	if(send(sockfd,&confirm,sizeof(confirm),0) == -1){
+		perror("send confirm");
+		exit(1);
+	}
 	close(sockfd);
 }
 void *get_in_addr(struct sockaddr *sa){
