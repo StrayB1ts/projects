@@ -10,6 +10,7 @@
  ******************************4/7 57% COMPLETE******************************
  */ 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -23,7 +24,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 #define MAXFNLEN 100
-#define MAXDATASIZE 100
+#define MAXDATASIZE 1024
 #define BACKLOG 10
 #define PORT "42069"
 /* function prototypes */
@@ -34,6 +35,8 @@ void *get_in_addr(struct sockaddr *sa);
 void sigchld_handler(int s);
 int sendfn(int sock, char *buf, int *len);
 FILE* openfile(FILE *pfile,char *filename);
+bool sendfile(int sock,FILE *pfile);
+bool recvfile(int sock,char *filename);
 /* these are used often so made them global */
 struct addrinfo hints, *servinfo, *p;
 int sockfd,new_fd, numbytes,rv;
@@ -66,12 +69,19 @@ int main(void){
 	return 0;
 }
 void getfilename(char* fn){
-	printf("Enter the name of the file you would like to use: ");
-	if(!fgets(fn,MAXFNLEN,stdin)){
-		fprintf(stderr,"error reading filename\n");
-		perror("Read fname");
-		exit(1);
-	}
+	int fnlen = 0;
+	printf("Enter the name of the file you would like to use:\n");
+	do{
+		if(!fgets(fn,MAXFNLEN,stdin)){
+			fprintf(stderr,"error reading filename\n");
+			perror("Read fname");
+			exit(1);
+		}
+		fnlen = strnlen(fn,MAXFNLEN);
+		if(fnlen <= 1){
+			printf("filename must be at least one character\n");
+		}
+	}while(fnlen <= 1);
 	for(unsigned short i = 0; i != MAXFNLEN; i++){
 		if(fn[i] == '\n'){
 			fn[i] = '\0';
@@ -82,8 +92,6 @@ FILE* openfile(FILE *pfile,char *filename){
 	char createfile = 'n';
 	pfile = fopen(filename,"r");
 	if(!pfile){
-		fprintf(stderr,"error reading file\n");
-		perror("Read file");
 		printf("Would you like to create the file (y/n)? ");
 		if(!scanf(" %c",&createfile)){
 			fprintf(stderr,"Error reading create choice");
@@ -204,13 +212,17 @@ void initialize_server(void){
 					close(new_fd);
 					printf("server: Transfer cancelled connection closed\n");
 					printf("server: waiting for connections...\n");
-					exit(0);
+					exit(1);
 				}
 				else{
-					//				if(send(new_fd,buf,sizeof(buf),0) == -1){
-					//					perror("send");
-					//				}
-					printf("placeholder\n");
+					if(!sendfile(new_fd,pfile)){
+						fclose(pfile);
+						close(new_fd);
+						fprintf(stderr,"server: failed to send file\n");
+						perror("send file");
+						printf("server: waiting for connections...\n");
+						exit(1);
+					}
 				}
 				fclose(pfile);
 				close(new_fd);
@@ -237,6 +249,7 @@ void initialize_client(char filename[]){
 	memset(&hints,0,sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
+	getchar();
 	printf("Enter the IP address of the machine you would like to connect to: ");
 	if(!fgets(ip,sizeof(ip),stdin)){
 		fprintf(stderr,"error reading IP address\n");
@@ -291,6 +304,12 @@ void initialize_client(char filename[]){
 		perror("send confirm");
 		exit(1);
 	}
+	if(!recvfile(sockfd,filename)){
+		close(sockfd);
+		fprintf(stderr,"client: failed to recieve file\n");
+		perror("recieving file");
+		exit(1);
+	}
 	close(sockfd);
 }
 void *get_in_addr(struct sockaddr *sa){
@@ -314,4 +333,10 @@ int sendfn(int sock, char *buf, int *len){
 	}
 	*len = total; // return number of bytes actually sent
 	return n == -1 ? -1 : 0; // return -1 on failure and 0 on success
+}
+bool sendfile(int sock,FILE *pfile){
+	return false;
+}
+bool recvfile(int sock,char *filename){
+	return false;
 }
