@@ -249,7 +249,6 @@ void initialize_client(char filename[]){
 	memset(&hints,0,sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	getchar();
 	printf("Enter the IP address of the machine you would like to connect to: ");
 	if(!fgets(ip,sizeof(ip),stdin)){
 		fprintf(stderr,"error reading IP address\n");
