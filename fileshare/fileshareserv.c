@@ -2,17 +2,19 @@
  * 1. access files [COMPLETE]
  * 	1.1 validate the file (file exists, etc) [COMPLETE]
  * 	1.2 make files? [COMPLETE]
+ *	1.3 provide filepath to server
  * 2. create a server and a client [COMPLETE]
  * 	* these should be separate modes that the user can choose
- 	* should use TCP to ensure all of the file gets sent and connection loss doesnt fuck shit up
- * 3. figure out serilization so it is more compatible
- * 4. compression and encryption?
- ******************************4/7 57% COMPLETE******************************
- */ 
+ * 	* should use TCP
+ * 3. check that user has the proper permissions to access file
+ * 4. figure out serilization so it is more compatible
+ * 5. encryption and compression?
+ ******************************4/8 50% COMPLETE******************************/ 
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -30,13 +32,13 @@
 /* function prototypes */
 void getfilename(char*);
 void initialize_server(void);
-void initialize_client(char *filename);
+void initialize_client(FILE *pfile,char *filename);
 void *get_in_addr(struct sockaddr *sa);
 void sigchld_handler(int s);
 int sendfn(int sock, char *buf, int *len);
 FILE* openfile(FILE *pfile,char *filename);
-bool sendfile(int sock,FILE *pfile);
-bool recvfile(int sock,char *filename);
+bool sendfile(int sock,int *filesize, char *filename);
+bool recvfile(int sock,char *filename,int *filesize);
 /* these are used often so made them global */
 struct addrinfo hints, *servinfo, *p;
 int sockfd,new_fd, numbytes,rv;
@@ -61,7 +63,7 @@ int main(void){
 			if(pfile != NULL){
 				fclose(pfile);
 			}
-			initialize_client(filename);
+			initialize_client(pfile,filename);
 			break;
 		default:
 			printf("invalid choice\n");
@@ -100,6 +102,7 @@ FILE* openfile(FILE *pfile,char *filename){
 		}
 		if(createfile == 'y'){
 			pfile = fopen(filename,"w+");
+			getchar();
 		}	
 		else{
 			printf("Closing program\n");
@@ -176,7 +179,7 @@ void initialize_server(void){
 		if(!fork()){
 			close(sockfd); // child doesn't need the listener
 			char buf[MAXDATASIZE];
-			char filesizestr[MAXDATASIZE];
+			char filesizestr[MAXFNLEN];
 			char confirmationofsize;
 			FILE *pfile = NULL;
 			int filesize = 0;
@@ -198,7 +201,7 @@ void initialize_server(void){
 					break;
 				}
 				filesize = ftell(pfile);
-				snprintf(filesizestr,MAXDATASIZE,"%d",filesize);
+				snprintf(filesizestr,MAXFNLEN,"%d",filesize);
 				if(send(new_fd,filesizestr,sizeof(filesizestr),0) == -1){
 					perror("send");
 					break;
@@ -215,7 +218,7 @@ void initialize_server(void){
 					exit(1);
 				}
 				else{
-					if(!sendfile(new_fd,pfile)){
+					if(!sendfile(new_fd,&filesize,buf)){
 						fclose(pfile);
 						close(new_fd);
 						fprintf(stderr,"server: failed to send file\n");
@@ -234,13 +237,14 @@ void initialize_server(void){
 		close(new_fd);
 	}
 }
-void initialize_client(char filename[]){
+void initialize_client(FILE *pfile,char filename[]){
 	char buf[MAXDATASIZE];
 	char s[INET6_ADDRSTRLEN];
-	int size = 0;
 	char ip[15];
 	char confirm;
-	for(short i = 0; i < MAXFNLEN;i++){
+	int size = 0;
+	int filesize = 0;
+	for(unsigned short i = 0; i < MAXFNLEN;i++){
 		size++;
 		if(filename[i] == '\0'){
 			break;
@@ -303,13 +307,17 @@ void initialize_client(char filename[]){
 		perror("send confirm");
 		exit(1);
 	}
-	if(!recvfile(sockfd,filename)){
+	filesize = atoi(buf);
+	bzero(buf,sizeof(buf));
+	printf("file size before recvfile: %d\n",filesize);
+	if(recvfile(sockfd,filename,&filesize) == false){
 		close(sockfd);
 		fprintf(stderr,"client: failed to recieve file\n");
 		perror("recieving file");
 		exit(1);
 	}
 	close(sockfd);
+	printf("transfer complete!\nclosing program\n");
 }
 void *get_in_addr(struct sockaddr *sa){
 	/* return the IP address of the socket passed, works with IPv4 and IPv6 */
@@ -333,9 +341,87 @@ int sendfn(int sock, char *buf, int *len){
 	*len = total; // return number of bytes actually sent
 	return n == -1 ? -1 : 0; // return -1 on failure and 0 on success
 }
-bool sendfile(int sock,FILE *pfile){
-	return false;
+bool sendfile(int sock,int *filesize,char *filename){
+	int bytessent = 0;
+	int amountread = 0;
+	int amountcopy = 0;
+	FILE *pfile = NULL;
+	char buffer[MAXDATASIZE];
+	pfile = fopen(filename,"r");
+	if(pfile == NULL){
+		fprintf(stderr,"failed to open file in sendfile function\n");
+		perror("open file");
+		return false;
+	}
+	while(bytessent < *filesize){
+//		if(feof(pfile)){
+//			break;
+//		}
+		amountread += fread(&buffer,1,sizeof(buffer) - 1,pfile);
+		printf("amount read before check: %d\n",amountread);
+		if(amountread == 0){
+			fprintf(stderr,"server: error reading file\n");
+			perror("reading file");
+			fclose(pfile);
+			return false;
+		}
+		amountcopy = amountread;
+		if(amountread != *filesize){
+			amountread += fread(buffer,1,sizeof(buffer) - 1,pfile);
+			if(amountread == amountcopy){
+				fprintf(stderr,"server: error reading rest of file\n");
+				perror("reading file");
+				fclose(pfile);
+				return false;
+			}
+		}
+		bytessent += send(sock,&buffer,sizeof(buffer),0);
+		printf("bytes sent: %d\n",bytessent);
+		if(bytessent == -1){
+			fprintf(stderr,"server: error sending file\n");
+			perror("sending file");
+			fclose(pfile);
+			return false;
+		}
+		((*filesize - bytessent) > 0) ? printf("sending file... %d bytes left\n",*filesize - bytessent) : printf(" ");
+		bzero(buffer,sizeof(buffer));
+	}
+	fclose(pfile);
+	return true;
 }
-bool recvfile(int sock,char *filename){
-	return false;
+bool recvfile(int sock,char *filename,int *filesize){
+	int bytesrecv = 0;
+//	int recvcopy = 0;
+	char buffer[MAXDATASIZE];
+	FILE *pfile = NULL;
+	pfile = fopen(filename,"w");
+	if(pfile == NULL){
+		fprintf(stderr,"failed to open file in recvfile function\n");
+		perror("open file");
+		return false;
+	}
+	printf("file size in recvfile: %d buffer in recvfile: %s\n",*filesize,buffer);
+	while(bytesrecv < *filesize){
+		printf("while loop started\n");
+		bytesrecv += recv(sock,&buffer,sizeof(buffer),0);	
+		if(bytesrecv == 0){
+			fprintf(stderr,"client: failed to recieve initial file data\n");
+			perror("initial data");
+			fclose(pfile);
+			return false;
+		}
+//		recvcopy = bytesrecv;
+		printf("buffer in recvfile: %s\n",buffer);
+		//if(bytesrecv == recvcopy){
+		//	fprintf(stderr,"client: failed to read more file data\n");
+		//	perror("more data");
+		//	fclose(pfile);
+		//	return false;
+		//}
+		printf("buffer before write and clear: %s\n",buffer);
+		fwrite(buffer,sizeof(buffer),1,pfile);
+		bzero(buffer,sizeof(buffer));
+	}
+	fclose(pfile);
+	return true;
 }
