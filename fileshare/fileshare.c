@@ -9,7 +9,11 @@
  * 3. check that user has the proper permissions to access file
  * 4. figure out serilization so it is more compatible
  * 5. encryption and compression?
- ******************************4/8 50% COMPLETE******************************/ 
+ ******************************4/8 50% COMPLETE*****************************
+ * SIDE QUESTS:
+ * 	- create a packet format so that it doesnt write a bunch of extra data
+ * 	- fix so that it will work in the same directory (started with that working and now it doesnt for some reason) 
+ */ 
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -354,6 +358,7 @@ bool sendfile(int sock,int *filesize,char *filename){
 		return false;
 	}
 	while(bytessent < *filesize){
+		fseek(pfile,0,SEEK_CUR);
 //		if(feof(pfile)){
 //			break;
 //		}
@@ -391,7 +396,6 @@ bool sendfile(int sock,int *filesize,char *filename){
 }
 bool recvfile(int sock,char *filename,int *filesize){
 	int bytesrecv = 0;
-//	int recvcopy = 0;
 	char buffer[MAXDATASIZE];
 	FILE *pfile = NULL;
 	pfile = fopen(filename,"w");
@@ -410,14 +414,7 @@ bool recvfile(int sock,char *filename,int *filesize){
 			fclose(pfile);
 			return false;
 		}
-//		recvcopy = bytesrecv;
 		printf("buffer in recvfile: %s\n",buffer);
-		//if(bytesrecv == recvcopy){
-		//	fprintf(stderr,"client: failed to read more file data\n");
-		//	perror("more data");
-		//	fclose(pfile);
-		//	return false;
-		//}
 		printf("buffer before write and clear: %s\n",buffer);
 		fwrite(buffer,sizeof(buffer),1,pfile);
 		bzero(buffer,sizeof(buffer));
