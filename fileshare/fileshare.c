@@ -12,7 +12,6 @@
  ******************************4/8 50% COMPLETE*****************************
  * SIDE QUESTS:
  * 	- create a packet format so that it doesnt write a bunch of extra data
- * 	- fix so that it will work in the same directory (started with that working and now it doesnt for some reason) 
  */ 
 #include <stdio.h>
 #include <stdbool.h>
@@ -33,23 +32,31 @@
 #define MAXDATASIZE 1024
 #define BACKLOG 10
 #define PORT "42069"
+typedef struct fileinfo fileinfo;
+struct fileinfo{
+	FILE *pfile;
+	char *tempfilename;
+	bool istemp;
+}FileInfo;
 /* function prototypes */
 void getfilename(char*);
 void initialize_server(void);
-void initialize_client(FILE *pfile,char *filename);
+void initialize_client(FILE *pfile,char *filename,char *temfilename,bool istemp);
 void *get_in_addr(struct sockaddr *sa);
 void sigchld_handler(int s);
 int sendfn(int sock, char *buf, int *len);
-FILE* openfile(FILE *pfile,char *filename);
+fileinfo openfile(FILE *pfile,char *filename);
 bool sendfile(int sock,int *filesize, char *filename);
-bool recvfile(int sock,char *filename,int *filesize);
+bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp);
+bool replacetemp(char *tempfile,char *filename);
 /* these are used often so made them global */
+char tempfiletemplate[20] = "tempXXXXXX";
 struct addrinfo hints, *servinfo, *p;
 int sockfd,new_fd, numbytes,rv;
 int main(void){
 	char mode = 'n';
 	char filename[MAXFNLEN];
-	FILE *pfile = NULL;
+	fileinfo mainInfo = {.pfile = NULL,.istemp = false, .tempfilename = ""};
 	printf("Would you like to run the program in (s)erver mode or (c)lient mode? ");
 	if(!scanf(" %c",&mode)){
 		fprintf(stderr,"Error reading create choice");
@@ -63,14 +70,14 @@ int main(void){
 		case 'c':
 			getchar();
 			getfilename(filename);
-			pfile = openfile(pfile,filename);	
-			if(pfile != NULL){
-				fclose(pfile);
-			}
-			initialize_client(pfile,filename);
+			mainInfo = openfile(mainInfo.pfile,filename);	
+			initialize_client(mainInfo.pfile,filename,mainInfo.tempfilename,mainInfo.istemp);
 			break;
 		default:
 			printf("invalid choice\n");
+	}
+	if(mainInfo.pfile != NULL){
+		fclose(mainInfo.pfile);
 	}
 	return 0;
 }
@@ -94,7 +101,7 @@ void getfilename(char* fn){
 		}
 	}
 }
-FILE* openfile(FILE *pfile,char *filename){
+fileinfo openfile(FILE *pfile,char *filename){
 	char createfile = 'n';
 	pfile = fopen(filename,"r");
 	if(!pfile){
@@ -106,14 +113,35 @@ FILE* openfile(FILE *pfile,char *filename){
 		}
 		if(createfile == 'y'){
 			pfile = fopen(filename,"w+");
+			FileInfo.pfile = pfile;
+			FileInfo.istemp = false;
 			getchar();
+			return FileInfo;
 		}	
 		else{
 			printf("Closing program\n");
 			exit(1);
 		}
 	}
-	return pfile;
+	else{
+		fclose(pfile);
+		if(!mkstemp(tempfiletemplate)){
+			fprintf(stderr,"failed to create temp file\n");
+			perror("temp file make");
+			exit(1);
+		}
+		printf("mkstemp: %s\n",tempfiletemplate);
+		FileInfo.tempfilename = tempfiletemplate;
+		pfile = fopen(tempfiletemplate,"w");
+		if(!pfile){
+			fprintf(stderr,"Error opening temp file\n");
+			perror("temp file open");
+			exit(1);
+		}
+		FileInfo.pfile = pfile;
+		FileInfo.istemp = true;
+		return FileInfo;
+	}
 }
 void sigchld_handler(int s){
 	/* waitpid() might overwrite errno, so we save and restore it */
@@ -241,7 +269,7 @@ void initialize_server(void){
 		close(new_fd);
 	}
 }
-void initialize_client(FILE *pfile,char filename[]){
+void initialize_client(FILE *pfile,char filename[],char tempfilename[],bool istemp){
 	char buf[MAXDATASIZE];
 	char s[INET6_ADDRSTRLEN];
 	char ip[15];
@@ -314,14 +342,23 @@ void initialize_client(FILE *pfile,char filename[]){
 	filesize = atoi(buf);
 	bzero(buf,sizeof(buf));
 	printf("file size before recvfile: %d\n",filesize);
-	if(recvfile(sockfd,filename,&filesize) == false){
+	if(recvfile(sockfd,pfile,&filesize,istemp) == false){
 		close(sockfd);
 		fprintf(stderr,"client: failed to recieve file\n");
 		perror("recieving file");
 		exit(1);
 	}
 	close(sockfd);
-	printf("transfer complete!\nclosing program\n");
+	if(istemp == false){
+		printf("transfer complete!\nclosing program\n");
+	}
+	else{
+		if(!replacetemp(FileInfo.tempfilename,filename)){
+			fprintf(stderr,"client: File failed to save to non-temp file\n");
+		  	perror("replace temp");
+			exit(1);
+		}
+	}
 }
 void *get_in_addr(struct sockaddr *sa){
 	/* return the IP address of the socket passed, works with IPv4 and IPv6 */
@@ -357,8 +394,8 @@ bool sendfile(int sock,int *filesize,char *filename){
 		perror("open file");
 		return false;
 	}
+	fseek(pfile,0,SEEK_SET);
 	while(bytessent < *filesize){
-		fseek(pfile,0,SEEK_CUR);
 //		if(feof(pfile)){
 //			break;
 //		}
@@ -394,16 +431,9 @@ bool sendfile(int sock,int *filesize,char *filename){
 	fclose(pfile);
 	return true;
 }
-bool recvfile(int sock,char *filename,int *filesize){
+bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp){
 	int bytesrecv = 0;
 	char buffer[MAXDATASIZE];
-	FILE *pfile = NULL;
-	pfile = fopen(filename,"w");
-	if(pfile == NULL){
-		fprintf(stderr,"failed to open file in recvfile function\n");
-		perror("open file");
-		return false;
-	}
 	printf("file size in recvfile: %d buffer in recvfile: %s\n",*filesize,buffer);
 	while(bytesrecv < *filesize){
 		printf("while loop started\n");
@@ -414,11 +444,26 @@ bool recvfile(int sock,char *filename,int *filesize){
 			fclose(pfile);
 			return false;
 		}
-		printf("buffer in recvfile: %s\n",buffer);
 		printf("buffer before write and clear: %s\n",buffer);
 		fwrite(buffer,sizeof(buffer),1,pfile);
 		bzero(buffer,sizeof(buffer));
 	}
-	fclose(pfile);
+	return true;
+}
+bool replacetemp(char *tempfile,char *filename){
+	char filenamecpy[MAXFNLEN] = {0};
+	for(unsigned short i = 0; i < MAXFNLEN; i++){
+		filenamecpy[i] = filename[i];
+	}
+	if(remove(filename) != 0){
+		fprintf(stderr,"failed to remove file\n");
+		perror("removing file");
+		return false;
+	}
+	if(rename(tempfile,filenamecpy) == -1){
+		fprintf(stderr,"failed to rename file\n");
+		perror("rename file");
+		return false;
+	}
 	return true;
 }
