@@ -103,8 +103,17 @@ void getfilename(char* fn){
 }
 fileinfo openfile(FILE *pfile,char *filen){
 	char createfile = 'n';
+	int permtestclientread = 0;
+	int permtestclientwrite = 0;
 	pfile = fopen(filen,"r");
 	if(!pfile){
+		permtestclientread = access(filename,R_OK);
+		permtestclientwrite = access(filename,W_OK);
+		if(permtestclientread != 0 || permtestclientwrite != 0){
+			fprintf(stderr,"cilent: user doesn't have permission to access file\n");
+			perror("client perms");
+			exit(1);
+		}
 		printf("Would you like to create the file (y/n)? ");
 		if(!scanf(" %c",&createfile)){
 			fprintf(stderr,"Error reading create choice");
@@ -215,7 +224,8 @@ void initialize_server(void){
 			char confirmationofsize;
 			FILE *pfile = NULL;
 			int filesize = 0;
-			int accessstatus = 0;
+			int accessstatusread = 0;
+			int accessstatuswrite = 0;
 			if((numbytes = recv(new_fd,buf,MAXDATASIZE - 1,0)) == -1){
 				perror("recv");
 				exit(1);
@@ -223,8 +233,9 @@ void initialize_server(void){
 			buf[numbytes] = '\0';
 			pfile = fopen(buf,"r");
 			if(pfile == NULL){
-				accessstatus = access(filename,R_OK);
-				if(accessstatus == 0){
+				accessstatusread = access(filename,R_OK);
+				accessstatuswrite = access(filename,W_OK);
+				if(accessstatusread == 0 && accessstatuswrite == 0){
 					if(send(new_fd,"FILE NOT FOUND",15,0) == -1){
 						perror("send");
 					}
@@ -342,9 +353,14 @@ void initialize_client(FILE *pfile,char filen[],char tempfilename[],bool istemp)
 	buf[numbytes] = '\0';
 	permtest = strncmp(buf,"PERMISSION DENIED",1);
 	if(permtest == 0){
-		printf("permission denied, closing program\n");
+		printf("permission denied server-side, closing program\n");
 		if(remove(filen) != 0){
 			fprintf(stderr,"failed to remove file\n");
+			perror("removing file");
+			return;
+		}
+		if(remove(tempfilename) != 0){
+			fprintf(stderr,"failed to remove temp file\n");
 			perror("removing file");
 			return;
 		}
