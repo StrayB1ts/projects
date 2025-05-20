@@ -6,10 +6,10 @@
  * 2. create a server and a client [COMPLETE]
  * 	* these should be separate modes that the user can choose
  * 	* should use TCP
- * 3. check that user has the proper permissions to access file
+ * 3. check that user has the proper permissions to access file [COMPLETE]
  * 4. figure out serilization so it is more compatible
  * 5. encryption and compression?
- ******************************4/8 50% COMPLETE*****************************
+ ******************************5/8 62.5% COMPLETE*****************************
  * SIDE QUESTS:
  * 	- create a packet format so that it doesnt write a bunch of extra data
  */ 
@@ -51,11 +51,11 @@ bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp);
 bool replacetemp(char *tempfile,char *filename);
 /* these are used often so made them global */
 char tempfiletemplate[20] = "tempXXXXXX";
+char filename[MAXFNLEN];
 struct addrinfo hints, *servinfo, *p;
 int sockfd,new_fd, numbytes,rv;
 int main(void){
 	char mode = 'n';
-	char filename[MAXFNLEN];
 	fileinfo mainInfo = {.pfile = NULL,.istemp = false, .tempfilename = ""};
 	printf("Would you like to run the program in (s)erver mode or (c)lient mode? ");
 	if(!scanf(" %c",&mode)){
@@ -101,9 +101,9 @@ void getfilename(char* fn){
 		}
 	}
 }
-fileinfo openfile(FILE *pfile,char *filename){
+fileinfo openfile(FILE *pfile,char *filen){
 	char createfile = 'n';
-	pfile = fopen(filename,"r");
+	pfile = fopen(filen,"r");
 	if(!pfile){
 		printf("Would you like to create the file (y/n)? ");
 		if(!scanf(" %c",&createfile)){
@@ -112,7 +112,7 @@ fileinfo openfile(FILE *pfile,char *filename){
 			exit(1);
 		}
 		if(createfile == 'y'){
-			pfile = fopen(filename,"w+");
+			pfile = fopen(filen,"w+");
 			FileInfo.pfile = pfile;
 			FileInfo.istemp = false;
 			getchar();
@@ -215,6 +215,7 @@ void initialize_server(void){
 			char confirmationofsize;
 			FILE *pfile = NULL;
 			int filesize = 0;
+			int accessstatus = 0;
 			if((numbytes = recv(new_fd,buf,MAXDATASIZE - 1,0)) == -1){
 				perror("recv");
 				exit(1);
@@ -222,8 +223,16 @@ void initialize_server(void){
 			buf[numbytes] = '\0';
 			pfile = fopen(buf,"r");
 			if(pfile == NULL){
-				if(send(new_fd,"FILE NOT FOUND",15,0) == -1){
-					perror("send");
+				accessstatus = access(filename,R_OK);
+				if(accessstatus == 0){
+					if(send(new_fd,"FILE NOT FOUND",15,0) == -1){
+						perror("send");
+					}
+				}
+				else{
+					if(send(new_fd,"PERMISSION DENIED",18,0) == -1){
+						perror("send");
+					}
 				}
 				break;
 			}
@@ -269,16 +278,17 @@ void initialize_server(void){
 		close(new_fd);
 	}
 }
-void initialize_client(FILE *pfile,char filename[],char tempfilename[],bool istemp){
+void initialize_client(FILE *pfile,char filen[],char tempfilename[],bool istemp){
 	char buf[MAXDATASIZE];
 	char s[INET6_ADDRSTRLEN];
 	char ip[15];
 	char confirm;
 	int size = 0;
 	int filesize = 0;
+	int permtest = 0;
 	for(unsigned short i = 0; i < MAXFNLEN;i++){
 		size++;
-		if(filename[i] == '\0'){
+		if(filen[i] == '\0'){
 			break;
 		}
 	}
@@ -324,12 +334,22 @@ void initialize_client(FILE *pfile,char filename[],char tempfilename[],bool iste
 	inet_ntop(p->ai_family,get_in_addr((struct sockaddr*) p->ai_addr),s,sizeof(s));
 	printf("client: connecting to %s\n",s);
 	freeaddrinfo(servinfo);
-	sendfn(sockfd,filename,&size);
+	sendfn(sockfd,filen,&size);
 	if((numbytes = recv(sockfd,buf,MAXDATASIZE - 1,0)) == -1){
 		perror("recv");
 		exit(1);
 	}
 	buf[numbytes] = '\0';
+	permtest = strncmp(buf,"PERMISSION DENIED",1);
+	if(permtest == 0){
+		printf("permission denied, closing program\n");
+		if(remove(filen) != 0){
+			fprintf(stderr,"failed to remove file\n");
+			perror("removing file");
+			return;
+		}
+		return;
+	}
 	printf("client: recieved file size of %s bytes, is this correct(y/n)? ",buf);
 	if(!scanf(" %c",&confirm)){
 		perror("size confirm");
@@ -353,7 +373,7 @@ void initialize_client(FILE *pfile,char filename[],char tempfilename[],bool iste
 		printf("transfer complete!\nclosing program\n");
 	}
 	else{
-		if(!replacetemp(FileInfo.tempfilename,filename)){
+		if(!replacetemp(FileInfo.tempfilename,filen)){
 			fprintf(stderr,"client: File failed to save to non-temp file\n");
 		  	perror("replace temp");
 			exit(1);
@@ -382,13 +402,13 @@ int sendfn(int sock, char *buf, int *len){
 	*len = total; // return number of bytes actually sent
 	return n == -1 ? -1 : 0; // return -1 on failure and 0 on success
 }
-bool sendfile(int sock,int *filesize,char *filename){
+bool sendfile(int sock,int *filesize,char *filen){
 	int bytessent = 0;
 	int amountread = 0;
 	int amountcopy = 0;
 	FILE *pfile = NULL;
 	char buffer[MAXDATASIZE];
-	pfile = fopen(filename,"r");
+	pfile = fopen(filen,"r");
 	if(pfile == NULL){
 		fprintf(stderr,"failed to open file in sendfile function\n");
 		perror("open file");
@@ -450,12 +470,12 @@ bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp){
 	}
 	return true;
 }
-bool replacetemp(char *tempfile,char *filename){
+bool replacetemp(char *tempfile,char *filen){
 	char filenamecpy[MAXFNLEN] = {0};
 	for(unsigned short i = 0; i < MAXFNLEN; i++){
-		filenamecpy[i] = filename[i];
+		filenamecpy[i] = filen[i];
 	}
-	if(remove(filename) != 0){
+	if(remove(filen) != 0){
 		fprintf(stderr,"failed to remove file\n");
 		perror("removing file");
 		return false;
