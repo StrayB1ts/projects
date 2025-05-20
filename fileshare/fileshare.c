@@ -12,6 +12,7 @@
  ******************************5/8 62.5% COMPLETE*****************************
  * SIDE QUESTS:
  * 	- create a packet format so that it doesnt write a bunch of extra data
+ * 	- new line
  */ 
 #include <stdio.h>
 #include <stdbool.h>
