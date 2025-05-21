@@ -106,11 +106,6 @@ fileinfo openfile(FILE *pfile,char *filen){
 	char createfile = 'n';
 	pfile = fopen(filen,"r");
 	if(!pfile){
-		if(!userpermsverif(filen,0)){
-			fprintf(stderr,"cilent: user doesn't have permission to access file\n");
-			perror("client perms");
-			exit(1);
-		}
 		printf("Would you like to create the file (y/n)? ");
 		if(!scanf(" %c",&createfile)){
 			fprintf(stderr,"Error reading create choice");
