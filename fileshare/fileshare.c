@@ -49,6 +49,7 @@ fileinfo openfile(FILE *pfile,char *filename);
 bool sendfile(int sock,int *filesize, char *filename);
 bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp);
 bool replacetemp(char *tempfile,char *filename);
+bool userpermsverif(char *filename,int type);
 /* these are used often so made them global */
 char tempfiletemplate[20] = "tempXXXXXX";
 char filename[MAXFNLEN];
@@ -103,13 +104,9 @@ void getfilename(char* fn){
 }
 fileinfo openfile(FILE *pfile,char *filen){
 	char createfile = 'n';
-	int permtestclientread = 0;
-	int permtestclientwrite = 0;
 	pfile = fopen(filen,"r");
 	if(!pfile){
-		permtestclientread = access(filename,R_OK);
-		permtestclientwrite = access(filename,W_OK);
-		if(permtestclientread != 0 || permtestclientwrite != 0){
+		if(!userpermsverif(filen,0)){
 			fprintf(stderr,"cilent: user doesn't have permission to access file\n");
 			perror("client perms");
 			exit(1);
@@ -133,6 +130,11 @@ fileinfo openfile(FILE *pfile,char *filen){
 		}
 	}
 	else{
+		if(!userpermsverif(filen,0)){
+			fprintf(stderr,"cilent: user doesn't have permission to access file\n");
+			perror("client perms");
+			exit(1);
+		}
 		fclose(pfile);
 		if(!mkstemp(tempfiletemplate)){
 			fprintf(stderr,"failed to create temp file\n");
@@ -224,8 +226,6 @@ void initialize_server(void){
 			char confirmationofsize;
 			FILE *pfile = NULL;
 			int filesize = 0;
-			int accessstatusread = 0;
-			int accessstatuswrite = 0;
 			if((numbytes = recv(new_fd,buf,MAXDATASIZE - 1,0)) == -1){
 				perror("recv");
 				exit(1);
@@ -233,9 +233,7 @@ void initialize_server(void){
 			buf[numbytes] = '\0';
 			pfile = fopen(buf,"r");
 			if(pfile == NULL){
-				accessstatusread = access(filename,R_OK);
-				accessstatuswrite = access(filename,W_OK);
-				if(accessstatusread == 0 && accessstatuswrite == 0){
+				if(userpermsverif(filename,1)){
 					if(send(new_fd,"FILE NOT FOUND",15,0) == -1){
 						perror("send");
 					}
@@ -432,9 +430,6 @@ bool sendfile(int sock,int *filesize,char *filen){
 	}
 	fseek(pfile,0,SEEK_SET);
 	while(bytessent < *filesize){
-//		if(feof(pfile)){
-//			break;
-//		}
 		amountread += fread(&buffer,1,sizeof(buffer) - 1,pfile);
 		printf("amount read before check: %d\n",amountread);
 		if(amountread == 0){
@@ -502,4 +497,32 @@ bool replacetemp(char *tempfile,char *filen){
 		return false;
 	}
 	return true;
+}
+bool userpermsverif(char *filen,int type){
+	int accessstatusread = 0;
+	int accessstatuswrite = 0;
+	switch(type){
+		case 0:
+		accessstatusread = access(filename,R_OK);
+		accessstatuswrite = access(filename,W_OK);
+		if((accessstatusread != 0 || accessstatuswrite != 0)){
+			return false;
+		}
+		else{
+			return true;
+		}
+		break;
+		case 1:
+			accessstatusread = access(filename,R_OK);
+			if(accessstatusread != 0){
+				return false;
+			}
+			else{
+				return true;
+			}
+			break;
+		default:
+			fprintf(stderr,"Something has gone very wrong to get here\n");
+			exit(1);
+	}
 }
