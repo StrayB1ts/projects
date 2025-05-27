@@ -2,4 +2,4 @@ tags
 */tags
 */makefile
 */compile_flags.txt
-*/*.o
+*.o
