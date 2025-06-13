@@ -13,48 +13,11 @@
  * SIDE QUESTS:
  * 	- create a packet format so that it doesnt write a bunch of extra data
  */ 
-//#include <stdio.h>
-//#include <stdbool.h>
-//#include <string.h>
-//#include <stdlib.h>
-//#include <strings.h>
-//#include <sys/types.h>
-//#include <sys/socket.h>
-//#include <netdb.h>
-//#include <netinet/in.h>
-//#include <arpa/inet.h>
-//#include <signal.h>
-//#include <unistd.h>
-//#include <signal.h>
-//#include <sys/wait.h>
-//#include <errno.h>
 #include "../inc/filehandling.h"
 #include "../inc/networking.h"
-//#define MAXFNLEN 100
-//#define MAXDATASIZE 1024
-//#define BACKLOG 10
-//#define PORT "42069"
-//typedef struct fileinfo fileinfo;
-//struct fileinfo{
-//	FILE *pfile;
-//	char *tempfilename;
-//	bool istemp;
-//}FileInfo;
-///* function prototypes */
-//void getfilename(char*);
 void initialize_server(void);
 void initialize_client(FILE *pfile,char *filename,char *temfilename,bool istemp);
-//void *get_in_addr(struct sockaddr *sa);
-//void sigchld_handler(int s);
-//int sendfn(int sock, char *buf, int *len);
-//fileinfo openfile(FILE *pfile,char *filename);
-//bool sendfile(int sock,int *filesize, char *filename);
-//bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp);
-//bool replacetemp(char *tempfile,char *filename);
-//bool userpermsverif(char *filename,int type);
-/* these are used often so made them global */
 fileinfo FileInfo;
-//char tempfiletemplate[20] = "tempXXXXXX";
 char filename[MAXFNLEN];
 struct addrinfo hints, *servinfo, *p;
 int sockfd,new_fd, numbytes,rv;
@@ -85,79 +48,6 @@ int main(void){
 	}
 	return 0;
 }
-//void getfilename(char* fn){
-//	int fnlen = 0;
-//	printf("Enter the name of the file you would like to use:\n");
-//	do{
-//		if(!fgets(fn,MAXFNLEN,stdin)){
-//			fprintf(stderr,"error reading filename\n");
-//			perror("Read fname");
-//			exit(1);
-//		}
-//		fnlen = strnlen(fn,MAXFNLEN);
-//		if(fnlen <= 1){
-//			printf("filename must be at least one character\n");
-//		}
-//	}while(fnlen <= 1);
-//	for(unsigned short i = 0; i != MAXFNLEN; i++){
-//		if(fn[i] == '\n'){
-//			fn[i] = '\0';
-//		}
-//	}
-//}
-//fileinfo openfile(FILE *pfile,char *filen){
-//	char createfile = 'n';
-//	pfile = fopen(filen,"r");
-//	if(!pfile){
-//		printf("Would you like to create the file (y/n)? ");
-//		if(!scanf(" %c",&createfile)){
-//			fprintf(stderr,"Error reading create choice");
-//			perror("create choice");
-//			exit(1);
-//		}
-//		if(createfile == 'y'){
-//			pfile = fopen(filen,"w+");
-//			FileInfo.pfile = pfile;
-//			FileInfo.istemp = false;
-//			getchar();
-//			return FileInfo;
-//		}	
-//		else{
-//			printf("Closing program\n");
-//			exit(1);
-//		}
-//	}
-//	else{
-//		if(!userpermsverif(filen,0)){
-//			fprintf(stderr,"cilent: user doesn't have permission to access file\n");
-//			perror("client perms");
-//			exit(1);
-//		}
-//		fclose(pfile);
-//		if(!mkstemp(tempfiletemplate)){
-//			fprintf(stderr,"failed to create temp file\n");
-//			perror("temp file make");
-//			exit(1);
-//		}
-//		printf("mkstemp: %s\n",tempfiletemplate);
-//		FileInfo.tempfilename = tempfiletemplate;
-//		pfile = fopen(tempfiletemplate,"w");
-//		if(!pfile){
-//			fprintf(stderr,"Error opening temp file\n");
-//			perror("temp file open");
-//			exit(1);
-//		}
-//		FileInfo.pfile = pfile;
-//		FileInfo.istemp = true;
-//		return FileInfo;
-//	}
-//}
-//void sigchld_handler(int s){
-//	/* waitpid() might overwrite errno, so we save and restore it */
-//	int saved_errno = errno;
-//	while(waitpid(-1,NULL,WNOHANG) > 0)
-//	errno = saved_errno;
-//}
 void initialize_server(void){
 	int yes = 1;
 	char s[INET6_ADDRSTRLEN];
@@ -261,7 +151,7 @@ void initialize_server(void){
 				if(confirmationofsize == 'n'){
 					fclose(pfile);
 					close(new_fd);
-					printf("server: Transfer cancelled connection closed\n");
+					fprintf(stderr,"server: Transfer cancelled connection closed\n");
 					printf("server: waiting for connections...\n");
 					exit(1);
 				}
@@ -385,142 +275,10 @@ void initialize_client(FILE *pfile,char filen[],char tempfilename[],bool istemp)
 		printf("transfer complete!\nclosing program\n");
 	}
 	else{
-		if(!replacetemp(FileInfo.tempfilename,filen)){
+		if(!replacetemp(tempfilename,filen)){
 			fprintf(stderr,"client: File failed to save to non-temp file\n");
 		  	perror("replace temp");
 			exit(1);
 		}
 	}
 }
-//void *get_in_addr(struct sockaddr *sa){
-//	/* return the IP address of the socket passed, works with IPv4 and IPv6 */
-//	if(sa->sa_family == AF_INET){
-//		return &(((struct sockaddr_in*) sa) -> sin_addr);
-//	}
-//	return &(((struct sockaddr_in6*) sa) -> sin6_addr);
-//}
-//int sendfn(int sock, char *buf, int *len){
-//	int total = 0; // how many bytes have been sent
-//	int bytesleft = *len; // how many are left to send
-//	int n = 0;
-//	while(total < *len){
-//		n = send(sock,buf + total, bytesleft,0);
-//		if(n == -1){
-//			break;
-//		}
-//		total += n;
-//		bytesleft -= n;
-//	}
-//	*len = total; // return number of bytes actually sent
-//	return n == -1 ? -1 : 0; // return -1 on failure and 0 on success
-//}
-//bool sendfile(int sock,int *filesize,char *filen){
-//	int bytessent = 0;
-//	int amountread = 0;
-//	int amountcopy = 0;
-//	FILE *pfile = NULL;
-//	char buffer[MAXDATASIZE];
-//	pfile = fopen(filen,"r");
-//	if(pfile == NULL){
-//		fprintf(stderr,"failed to open file in sendfile function\n");
-//		perror("open file");
-//		return false;
-//	}
-//	fseek(pfile,0,SEEK_SET);
-//	while(bytessent < *filesize){
-//		amountread += fread(&buffer,1,sizeof(buffer) - 1,pfile);
-//		printf("amount read before check: %d\n",amountread);
-//		if(amountread == 0){
-//			fprintf(stderr,"server: error reading file\n");
-//			perror("reading file");
-//			fclose(pfile);
-//			return false;
-//		}
-//		amountcopy = amountread;
-//		if(amountread != *filesize){
-//			amountread += fread(buffer,1,sizeof(buffer) - 1,pfile);
-//			if(amountread == amountcopy){
-//				fprintf(stderr,"server: error reading rest of file\n");
-//				perror("reading file");
-//				fclose(pfile);
-//				return false;
-//			}
-//		}
-//		bytessent += send(sock,&buffer,sizeof(buffer),0);
-//		printf("bytes sent: %d\n",bytessent);
-//		if(bytessent == -1){
-//			fprintf(stderr,"server: error sending file\n");
-//			perror("sending file");
-//			fclose(pfile);
-//			return false;
-//		}
-//		((*filesize - bytessent) > 0) ? printf("sending file... %d bytes left\n",*filesize - bytessent) : printf(" ");
-//		bzero(buffer,sizeof(buffer));
-//	}
-//	fclose(pfile);
-//	return true;
-//}
-//bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp){
-//	int bytesrecv = 0;
-//	char buffer[MAXDATASIZE];
-//	printf("file size in recvfile: %d buffer in recvfile: %s\n",*filesize,buffer);
-//	while(bytesrecv < *filesize){
-//		printf("while loop started\n");
-//		bytesrecv += recv(sock,&buffer,sizeof(buffer),0);	
-//		if(bytesrecv == 0){
-//			fprintf(stderr,"client: failed to recieve initial file data\n");
-//			perror("initial data");
-//			fclose(pfile);
-//			return false;
-//		}
-//		printf("buffer before write and clear: %s\n",buffer);
-//		fwrite(buffer,sizeof(buffer),1,pfile);
-//		bzero(buffer,sizeof(buffer));
-//	}
-//	return true;
-//}
-//bool replacetemp(char *tempfile,char *filen){
-//	char filenamecpy[MAXFNLEN] = {0};
-//	for(unsigned short i = 0; i < MAXFNLEN; i++){
-//		filenamecpy[i] = filen[i];
-//	}
-//	if(remove(filen) != 0){
-//		fprintf(stderr,"failed to remove file\n");
-//		perror("removing file");
-//		return false;
-//	}
-//	if(rename(tempfile,filenamecpy) == -1){
-//		fprintf(stderr,"failed to rename file\n");
-//		perror("rename file");
-//		return false;
-//	}
-//	return true;
-//}
-//bool userpermsverif(char *filen,int type){
-//	int accessstatusread = 0;
-//	int accessstatuswrite = 0;
-//	switch(type){
-//		case 0:
-//		accessstatusread = access(filename,R_OK);
-//		accessstatuswrite = access(filename,W_OK);
-//		if((accessstatusread != 0 || accessstatuswrite != 0)){
-//			return false;
-//		}
-//		else{
-//			return true;
-//		}
-//		break;
-//		case 1:
-//			accessstatusread = access(filename,R_OK);
-//			if(accessstatusread != 0){
-//				return false;
-//			}
-//			else{
-//				return true;
-//			}
-//			break;
-//		default:
-//			fprintf(stderr,"Something has gone very wrong to get here\n");
-//			exit(1);
-//	}
-//}

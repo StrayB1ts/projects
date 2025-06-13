@@ -1,6 +1,6 @@
 #include "../inc/filehandling.h"
-char tempfiletemplate[20]  = "tempXXXXXX";
 fileinfo Finfo;
+char tempfiletemplate[20]  = "tempXXXXXX";
 void getfilename(char* fn){
 	int fnlen = 0;
 	printf("Enter the name of the file you would like to use:\n");
