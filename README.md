@@ -19,3 +19,16 @@ All projects will include the source code as well as a pre-compiled binary versi
 **Limitations/Quirks**: 
 - Must be used on a *NIX machine (feel free to fork and make it work on Windows/Mac though!)
 - No directory traversal so the server must be run from the folder that has the file you want
+
+## Read Phrack (rephr)
+**Status**: incomplete
+
+**Language**: zig
+
+**Description** Cli-based tool to select/read/save phrack magazine (https://phrack.org/) articles
+
+**Features**:
+- Simple cli
+- low memory footprint
+- article saving
+- vi-like navigation?
