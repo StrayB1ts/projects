@@ -43,9 +43,7 @@ int main(void){
 		default:
 			printf("invalid choice\n");
 	}
-	if(mainInfo.pfile != NULL){
-		fclose(mainInfo.pfile);
-	}
+	if(mainInfo.pfile != NULL){ fclose(mainInfo.pfile); }
 	return 0;
 }
 void initialize_server(void){
@@ -122,14 +120,10 @@ void initialize_server(void){
 			pfile = fopen(buf,"r");
 			if(pfile == NULL){
 				if(userpermsverif(filename,1)){
-					if(send(new_fd,"FILE NOT FOUND",15,0) == -1){
-						perror("send");
-					}
+					if(send(new_fd,"FILE NOT FOUND",15,0) == -1){ perror("send"); }
 				}
 				else{
-					if(send(new_fd,"PERMISSION DENIED",18,0) == -1){
-						perror("send");
-					}
+					if(send(new_fd,"PERMISSION DENIED",18,0) == -1){ perror("send"); }
 				}
 				break;
 			}
@@ -176,18 +170,16 @@ void initialize_server(void){
 	}
 }
 void initialize_client(FILE *pfile,char filen[],char tempfilename[],bool istemp){
-	char buf[MAXDATASIZE];
-	char s[INET6_ADDRSTRLEN];
-	char ip[15];
+	char buf[MAXDATASIZE] = {0};
+	char s[INET6_ADDRSTRLEN] = {0};
+	char ip[15] = {0};
 	char confirm;
 	int size = 0;
 	int filesize = 0;
 	int permtest = 0;
 	for(unsigned short i = 0; i < MAXFNLEN;i++){
 		size++;
-		if(filen[i] == '\0'){
-			break;
-		}
+		if(filen[i] == '\0'){ break; }
 	}
 	memset(&hints,0,sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -199,13 +191,9 @@ void initialize_client(FILE *pfile,char filen[],char tempfilename[],bool istemp)
 		exit(1);
 	}
 	for(unsigned short i = 0; i != sizeof(ip); i++){
-		if(ip[i] == '\n'){
-			ip[i] = '\0';
-		}
+		if(ip[i] == '\n'){ ip[i] = '\0'; }
 	}
-	if(strcmp(ip,"localhost") == 0){
-		strncpy(ip,"127.0.0.1",12);
-	}
+	if(strcmp(ip,"localhost") == 0){ strncpy(ip,"127.0.0.1",12); }
 	if((rv = getaddrinfo(ip,PORT,&hints,&servinfo)) != 0){
 		fprintf(stderr,"getaddrinfo: %s\n",gai_strerror(rv));
 		exit(1);
@@ -261,24 +249,31 @@ void initialize_client(FILE *pfile,char filen[],char tempfilename[],bool istemp)
 		perror("send confirm");
 		exit(1);
 	}
-	filesize = atoi(buf);
-	bzero(buf,sizeof(buf));
-	printf("file size before recvfile: %d\n",filesize);
-	if(recvfile(sockfd,pfile,&filesize,istemp) == false){
-		close(sockfd);
-		fprintf(stderr,"client: failed to recieve file\n");
-		perror("recieving file");
-		exit(1);
-	}
-	close(sockfd);
-	if(istemp == false){
-		printf("transfer complete!\nclosing program\n");
-	}
-	else{
-		if(!replacetemp(tempfilename,filen)){
-			fprintf(stderr,"client: File failed to save to non-temp file\n");
-		  	perror("replace temp");
-			exit(1);
-		}
+	switch(confirm){
+		case 'y':
+			filesize = atoi(buf);
+			bzero(buf,sizeof(buf));
+			printf("file size before recvfile: %d\n",filesize);
+			if(recvfile(sockfd,pfile,&filesize,istemp) == false){
+				close(sockfd);
+				fprintf(stderr,"client: failed to recieve file\n");
+				perror("recieving file");
+				exit(1);
+			}
+			close(sockfd);
+			if(istemp == false){ printf("transfer complete!\nclosing program\n"); }
+			else{
+				if(!replacetemp(tempfilename,filen)){
+					fprintf(stderr,"client: File failed to save to non-temp file\n");
+					perror("replace temp");
+					exit(1);
+				}
+			}
+			break;
+		case 'n':
+			printf("filesize refused, closing program\n");
+			break;
+		default:
+			printf("invalid option\n");
 	}
 }

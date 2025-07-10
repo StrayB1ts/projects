@@ -11,15 +11,9 @@ void getfilename(char* fn){
 			exit(1);
 		}
 		fnlen = strnlen(fn,MAXFNLEN);
-		if(fnlen <= 1){
-			printf("filename must be at least one character\n");
-		}
+		if(fnlen <= 1){ printf("filename must be at least one character\n"); }
 	}while(fnlen <= 1);
-	for(unsigned short i = 0; i != MAXFNLEN; i++){
-		if(fn[i] == '\n'){
-			fn[i] = '\0';
-		}
-	}
+	for(unsigned short i = 0; i != MAXFNLEN; i++){ if(fn[i] == '\n'){ fn[i] = '\0'; } }
 }
 fileinfo openfile(FILE *pfile,char *filen){
 	char createfile = 'n';
@@ -70,9 +64,7 @@ fileinfo openfile(FILE *pfile,char *filen){
 }
 bool replacetemp(char *tempfile,char *filen){
 	char filenamecpy[MAXFNLEN] = {0};
-	for(unsigned short i = 0; i < MAXFNLEN; i++){
-		filenamecpy[i] = filen[i];
-	}
+	for(unsigned short i = 0; i < MAXFNLEN; i++){ filenamecpy[i] = filen[i]; }
 	if(remove(filen) != 0){
 		fprintf(stderr,"failed to remove file\n");
 		perror("removing file");
@@ -92,21 +84,13 @@ bool userpermsverif(char *filen,int type){
 		case 0:
 		accessstatusread = access(filen,R_OK);
 		accessstatuswrite = access(filen,W_OK);
-		if((accessstatusread != 0 || accessstatuswrite != 0)){
-			return false;
-		}
-		else{
-			return true;
-		}
+		if((accessstatusread != 0 || accessstatuswrite != 0)){ return false; }
+		else{ return true; }
 		break;
 		case 1:
 			accessstatusread = access(filen,R_OK);
-			if(accessstatusread != 0){
-				return false;
-			}
-			else{
-				return true;
-			}
+			if(accessstatusread != 0){ return false; }
+			else{ return true; }
 			break;
 		default:
 			fprintf(stderr,"Something has gone very wrong to get here\n");

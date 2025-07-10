@@ -18,9 +18,7 @@ int sendfn(int sock, char *buf, int *len){
 	int n = 0;
 	while(total < *len){
 		n = send(sock,buf + total, bytesleft,0);
-		if(n == -1){
-			break;
-		}
+		if(n == -1){ break; }
 		total += n;
 		bytesleft -= n;
 	}
@@ -31,6 +29,7 @@ bool sendfile(int sock,int *filesize,char *filen){
 	int bytessent = 0;
 	int amountread = 0;
 	int amountcopy = 0;
+	int actualbufsize = 0;
 	FILE *pfile = NULL;
 	char buffer[MAXDATASIZE];
 	pfile = fopen(filen,"r");
@@ -40,7 +39,7 @@ bool sendfile(int sock,int *filesize,char *filen){
 		return false;
 	}
 	fseek(pfile,0,SEEK_SET);
-	while(bytessent < *filesize){
+	while(bytessent <= *filesize){
 		amountread += fread(&buffer,1,sizeof(buffer) - 1,pfile);
 		printf("amount read before check: %d\n",amountread);
 		if(amountread == 0){
@@ -75,7 +74,7 @@ bool sendfile(int sock,int *filesize,char *filen){
 }
 bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp){
 	int bytesrecv = 0;
-	char buffer[MAXDATASIZE];
+	char buffer[MAXDATASIZE] = {0};
 	printf("file size in recvfile: %d buffer in recvfile: %s\n",*filesize,buffer);
 	while(bytesrecv < *filesize){
 		printf("while loop started\n");
@@ -92,3 +91,5 @@ bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp){
 	}
 	return true;
 }
+void make_packet(void);
+void deconst_packet(void);

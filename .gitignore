@@ -2,3 +2,5 @@ tags
 */tags
 */compile_flags.txt
 *.o
+rephr
+rephr/*
