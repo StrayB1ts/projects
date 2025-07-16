@@ -91,5 +91,6 @@ bool recvfile(int sock,FILE *pfile,int *filesize,bool istemp){
 	}
 	return true;
 }
-void make_packet(void);
-void deconst_packet(void);
+bool make_packet(char *buffer);
+bool deconst_packet(int size,char *buffer, int crc);
+int compute_crc(int size,char *buffer);
